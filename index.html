@@ -88,10 +88,10 @@
     #banner.show{opacity:1; transform:translateX(-50%) translateY(0)}
 .minimap{
   position:absolute;
-  right:12px; /* en vez de left */
-  top:12px;   /* más pegado al borde */
-  width:320px;
-  height:240px;
+  right:8px; 
+  top:8px;
+  width: clamp(140px, 28vw, 280px); /* antes 320px */
+  aspect-ratio: 4 / 3;             /* mantiene 4:3, altura se calcula sola */
   image-rendering: pixelated;
   background:#0b1626;
   border:1px solid #22314a;
@@ -100,6 +100,10 @@
   pointer-events:none;
   opacity:.95;
 }
+@media (min-width: 900px){
+  .minimap{ width: 320px; } /* en desktop vuelve a 320 de ancho */
+}
+
 
 /* ----- Responsive HUD / minimapa ----- */
 @media (max-width: 900px){
@@ -139,6 +143,40 @@
   #touch{ display:none; } /* oculta controles en desktop */
 }
 
+/* Asegurar orden de capas en móvil/desktop */
+canvas#game{
+  position: fixed;         /* o relative si prefieres, pero mejor fixed a pantalla completa */
+  inset: 0;                /* ocupa toda la pantalla */
+  z-index: 0;              /* siempre al fondo */
+}
+
+#ui{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;    /* como ya lo tienes */
+  z-index: 70;             /* HUD por encima del canvas */
+}
+
+/* Elementos del HUD encima con seguridad */
+.hud,
+.minimap,
+.prompt,
+.panel{
+  z-index: 71;             /* opcional, por si algún móvil es quisquilloso */
+}
+
+/* Mantener pantallas especiales por encima del HUD */
+#start{ z-index: 100; }    /* estaba en 10; súbelo para que tape el HUD al inicio */
+#fade{ z-index: 90; }
+#banner{ z-index: 92; }
+#loading{ z-index: 95; }
+#touch{ z-index: 80; }     /* controles táctiles encima del HUD si quieres pulsarlos */
+
+/* Esconder controles táctiles en equipos con mouse/trackpad */
+@media (hover: hover) and (pointer: fine){
+  #touch{ display:none !important; }
+}
+
 
   </style>
 </head>
@@ -170,8 +208,11 @@
   <div id="banner"><div class="pill"><h2 id="bannerText">PRIMAVERA</h2></div></div>
 
   <div id="ui">
-    <div class="hud">Nivel: <b id="levelHUD">1/3</b> · Tema: <b id="topicHUD">—</b> · Puntos: <b id="score">0</b> · Llave: <span id="keysHUD">0/1</span></div>
-      <canvas id="mini" class="minimap"></canvas>
+   <div id="hudWrap">
+  <div class="hud">Nivel: <b id="levelHUD">1/3</b> · Tema: <b id="topicHUD">—</b> · Puntos: <b id="score">0</b> · Llave: <span id="keysHUD">0/1</span></div>
+  <canvas id="mini" class="minimap"></canvas>
+</div>
+
     <div class="prompt" id="prompt" style="display:none">Presiona <b>E</b> para interactuar</div>
 
     <div class="panel" id="quiz">
@@ -226,19 +267,52 @@ const TILE_PATH  = 3;   // caminos
 
 
 // ===== CONSTS =====
-var TILE=16; var VIEW_W=48, VIEW_H=36; // se recalcula a tamaño de ventana
-var WORLD_W=140, WORLD_H=70; // mundo aún más grande
+var TILE = 16; var VIEW_W=48, VIEW_H=36; // VIEW_* se recalculan
+var WORLD_W=140, WORLD_H=70;
+function setTileForDevice(){
+  const w = window.innerWidth, h = window.innerHeight;
+  const shortSide = Math.min(w, h);
+
+  // Escalas recomendadas para móvil (ajusta a gusto):
+  if (shortSide <= 360) {        // teléfonos muy compactos
+    TILE = 10;                   // zoom más lejos
+  } else if (shortSide <= 480) { // teléfonos comunes
+    TILE = 12;
+  } else if (shortSide <= 820) { // tablets/chicos
+    TILE = 14;
+  } else {                       // desktop o pantallas grandes
+    TILE = 16;
+  }
+}
+setTileForDevice();
 var cvs=document.getElementById('game');
 var ctx=cvs.getContext('2d');
 var mini = document.getElementById('mini');
 var mctx = mini.getContext('2d');
 mctx.imageSmoothingEnabled = false;
-var MM_SCALE = 3; // 1 px por tile
+// antes: var MM_SCALE = 3;
+var MM_SCALE = 3;
 
+function setupMinimapScale(){
+  // menos densidad de píxel en móvil para que no pese tanto
+  MM_SCALE = (window.innerWidth < 420) ? 2 : 3;
+  mini.width  = WORLD_W * MM_SCALE;
+  mini.height = WORLD_H * MM_SCALE;
+}
+
+addEventListener('resize', setupMinimapScale);
 
 // responsive canvas a pantalla completa
-function resize(){ cvs.width=window.innerWidth; cvs.height=window.innerHeight; VIEW_W=Math.floor(cvs.width/TILE); VIEW_H=Math.floor(cvs.height/TILE); }
-addEventListener('resize', resize); resize();
+function resize(){
+  setTileForDevice();                          // <— recalcula TILE según pantalla
+  cvs.width = window.innerWidth;
+  cvs.height = window.innerHeight;
+  VIEW_W = Math.floor(cvs.width / TILE);
+  VIEW_H = Math.floor(cvs.height / TILE);
+}
+addEventListener('resize', resize);
+resize();
+
 
 // ===== polyfills / compat =====
 function myHypot(a,b){ if(typeof Math.hypot==='function'){ return Math.hypot(a,b); } return Math.sqrt(a*a + b*b); }
@@ -411,8 +485,7 @@ for (i=0;i<L.barns.length;i++){
   document.getElementById('levelHUD').textContent=(idx+1)+"/"+levels.length;
   document.getElementById('topicHUD').textContent=L.topic;
   spawnParticles();
-  mini.width  = WORLD_W * MM_SCALE;
-mini.height = WORLD_H * MM_SCALE;
+  setupMinimapScale();
 
 }
 
@@ -1264,6 +1337,39 @@ requestAnimationFrame(loop);
 var joy = document.getElementById('joy');
 var thumb = document.getElementById('thumb');
 var btnE = document.getElementById('btnE');
+
+// Detectar si es dispositivo táctil
+const isTouchDevice =
+  ('ontouchstart' in window) ||
+  (navigator.maxTouchPoints > 0) ||
+  window.matchMedia('(hover: none), (pointer: coarse)').matches;
+
+// Si NO es táctil: eliminar el contenedor y NO montar listeners
+if(!isTouchDevice){
+  const touchWrap = document.getElementById('touch');
+  if(touchWrap) touchWrap.remove();     // fuera del DOM
+} else {
+  // --- listeners joystick (solo táctil) ---
+  joy.addEventListener('touchstart', e=>{ e.preventDefault(); var t=e.changedTouches[0]; joyStart(t.clientX, t.clientY); }, {passive:false});
+  joy.addEventListener('touchmove',  e=>{ e.preventDefault(); var t=e.changedTouches[0]; joyMove(t.clientX, t.clientY); }, {passive:false});
+  joy.addEventListener('touchend',   e=>{ e.preventDefault(); joyEnd(); }, {passive:false});
+
+  // --- botón E táctil ---
+  btnE.addEventListener('touchstart', e=>{ e.preventDefault(); keysDown['e']=true; }, {passive:false});
+  btnE.addEventListener('touchend',   e=>{ e.preventDefault(); keysDown['e']=false; }, {passive:false});
+}
+
+// (Opcional) evita listeners de mouse en el joystick si no existe
+if(isTouchDevice){
+  joy.addEventListener('mousedown',  e=>{ e.preventDefault(); joyStart(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', e=>{ if(joyActive) joyMove(e.clientX, e.clientY); });
+  window.addEventListener('mouseup',   joyEnd);
+
+  // botón E con mouse por si alguien usa emulador
+  btnE.addEventListener('mousedown',  e=>{ keysDown['e']=true; });
+  btnE.addEventListener('mouseup',    e=>{ keysDown['e']=false; });
+}
+
 
 var joyActive = false, joyAX = 0, joyAY = 0;
 var joyCenter = {x:0,y:0}, joyRadius = 56; // radio útil dentro de la base
