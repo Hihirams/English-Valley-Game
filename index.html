@@ -1,0 +1,1344 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>English Valley Game— Multi‑Nivel</title>
+  <style>
+    html,body{height:100%;margin:0;background:#87ceeb;color:#e5e7eb;font-family:ui-sans-serif,system-ui,Segoe UI,Inter;overflow:hidden}
+    canvas{display:block;margin:0;background:#87ceeb;image-rendering:pixelated}
+    #ui{position:fixed;inset:0;pointer-events:none}
+   .hud{
+  position:absolute;
+  top:12px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#0f172aee;
+  border:1px solid #1f2937;
+  border-radius:12px;
+  padding:10px 12px;
+}
+    .hud b{color:#93c5fd}
+    .prompt{position:absolute;left:50%;transform:translateX(-50%);bottom:16px;background:#0f172add;border:1px solid #1f2937;border-radius:10px;padding:8px 12px}
+    .panel{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0000}
+    .card{pointer-events:auto;width:min(880px,92vw);background:linear-gradient(180deg,#0e1729,#0a1220);border:1px solid #1f2937;border-radius:16px;box-shadow:0 20px 50px #0007}
+    .card header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #1f2937}
+    .card main{padding:18px}
+    .btn{appearance:none;background:linear-gradient(90deg,#2563eb,#60a5fa,#2563eb);background-size:200% 100%;border:1px solid #1e40af;color:#e5e7eb;padding:14px 20px;border-radius:14px;cursor:pointer;font-weight:800;letter-spacing:.4px;box-shadow:0 8px 24px #1e40af55}
+    .btn:hover{filter:brightness(1.05)}
+    .btn{animation:pulse 2.4s ease-in-out infinite;transition:transform .15s ease, background-position .6s ease}
+    .btn:active{transform:scale(.98)}
+    @keyframes pulse{0%,100%{background-position:0% 0; box-shadow:0 8px 24px #1e40af55}50%{background-position:100% 0; box-shadow:0 10px 34px #60a5fa66}}
+    .opt{display:block;width:100%;text-align:left;margin-top:10px}
+    .ok{border-color:#166534;background:#0e1a12}
+    .bad{border-color:#7f1d1d;background:#1a0e0e}
+
+    /* Start Screen — fondo se queda, sin modal */
+    #start{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10;overflow:hidden;pointer-events:auto;
+      background: radial-gradient(1200px 900px at 50% 20%,#cfe9ff,#87ceeb);
+      animation:bgPulse 8s ease-in-out infinite}
+    @keyframes bgPulse{0%{filter:saturate(1)}50%{filter:saturate(1.2) brightness(1.05)}100%{filter:saturate(1)}}
+    #start .scene{position:absolute;inset:0;pointer-events:none}
+    .sun{position:absolute;left:12%;top:8%;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fffbe6,#ffe27a 60%,#ffb703 80%);box-shadow:0 0 140px #ffd166aa;animation:sunPulse 6s ease-in-out infinite}
+    @keyframes sunPulse{50%{transform:scale(1.04)}}
+    .hill{position:absolute;bottom:-10%;width:160%;height:40%;left:-30%;border-radius:50%;filter:blur(0.5px)}
+    .h1{background:linear-gradient(180deg,#3b7ab3,#275b8f);animation:par1 28s linear infinite}
+    .h2{background:linear-gradient(180deg,#69a7d7,#3e82b3);height:50%;bottom:-15%;animation:par2 38s linear infinite}
+    @keyframes par1{from{transform:translateX(0)}to{transform:translateX(4%)}}
+    @keyframes par2{from{transform:translateX(0)}to{transform:translateX(-4%)}}
+    .cloud{position:absolute;top:15%;width:280px;height:100px;background:radial-gradient(closest-side,#fff,#ffffffcc 60%,transparent 61%);
+      border-radius:999px;filter:blur(0.5px);opacity:.85}
+    .c1{left:-320px;animation:drift 30s linear infinite}
+    .c2{top:28%;left:-460px;animation:drift 40s linear infinite 4s}
+    .c3{top:48%;left:-380px;animation:drift 48s linear infinite 2s}
+    @keyframes drift{to{transform:translateX(1600px)}}
+
+    /* Mensaje gigante y botón centrado directamente en el start */
+    .hero{position:relative;z-index:2;text-align:center;max-width:min(1200px,92vw);padding:20px}
+    .hero h1{margin:0 0 10px;font-weight:1000;letter-spacing:1px;font-size:clamp(42px,8vw,96px); color:#072d4a;text-shadow:0 4px 0 #ffffffcc,0 18px 50px #00000033}
+    .hero p{margin:0 0 24px;color:#0b1b2a;font-weight:800;letter-spacing:.4px;font-size:clamp(18px,2.8vw,24px)}
+    .hero .btn{font-size:clamp(18px,3vw,24px)}
+
+    /* Fade overlay */
+    #fade{position:fixed;inset:0;background:#000;opacity:0;transition:opacity .6s ease;pointer-events:none;z-index:90}
+
+    /* Loading Screen por nivel */
+    #loading{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0b1222ee;z-index:95}
+    #loading .loader{display:flex;flex-direction:column;align-items:center;gap:12px}
+    .ring{width:80px;height:80px;border-radius:50%;border:6px solid #1e3a8a;border-top-color:#60a5fa;animation:spin 1.1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .bar{width:min(520px,82vw);height:12px;border:1px solid #264166;border-radius:999px;overflow:hidden}
+    .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#60a5fa);animation:grow 1.2s ease forwards}
+    @keyframes grow{to{width:100%}}
+    .caption{font-weight:800;color:#93c5fd;letter-spacing:.4px}
+
+    /* HUD key pop */
+    .pop{animation:pop .5s ease}
+    @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.25)}100%{transform:scale(1)}}
+
+    /* Fail panel (rojo) */
+    #fail .card{background:linear-gradient(180deg,#2b0b0b,#150606); border-color:#7f1d1d}
+    #fail .card header{border-bottom-color:#7f1d1d}
+    #fail .card .title{color:#fecaca}
+
+    /* Banner estacional */
+    #banner{position:fixed;left:50%;top:10%;transform:translateX(-50%);z-index:92;pointer-events:none; opacity:0; transition:opacity .4s ease, transform .4s ease}
+    #banner .pill{background:linear-gradient(90deg,#0ea5e9,#22d3ee);padding:12px 22px;border-radius:999px;box-shadow:0 10px 30px #0005;border:1px solid #0ea5e9}
+    #banner .pill h2{margin:0;font-size:clamp(20px,3.5vw,38px);letter-spacing:.6px;color:#06203a;text-shadow:0 2px 0 #ffffffaa}
+    #banner.show{opacity:1; transform:translateX(-50%) translateY(0)}
+.minimap{
+  position:absolute;
+  right:12px; /* en vez de left */
+  top:12px;   /* más pegado al borde */
+  width:320px;
+  height:240px;
+  image-rendering: pixelated;
+  background:#0b1626;
+  border:1px solid #22314a;
+  border-radius:10px;
+  box-shadow:0 8px 20px #0006;
+  pointer-events:none;
+  opacity:.95;
+}
+
+/* ----- Responsive HUD / minimapa ----- */
+@media (max-width: 900px){
+  .minimap{
+    width:200px; height:150px; right:8px; top:8px;
+    border-radius:8px; box-shadow:0 6px 16px #0006;
+  }
+  .hud{ top:8px; padding:8px 10px; font-size:14px; }
+}
+
+/* ----- Controles táctiles ----- */
+#touch{
+  position:fixed; inset:0; pointer-events:none; z-index:80;
+}
+.joy, .btnE{
+  pointer-events:auto; position:absolute;
+}
+.joy{
+  left:16px; bottom:16px; width:140px; height:140px;
+  border-radius:50%; background:#0b1626aa; border:1px solid #22314a;
+  touch-action:none;
+}
+.joy .thumb{
+  position:absolute; left:50%; top:50%; width:64px; height:64px;
+  margin:-32px 0 0 -32px; border-radius:50%;
+  background:#1f2e48; border:1px solid #2f4a78;
+}
+.btnE{
+  right:16px; bottom:28px; width:84px; height:84px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(180deg,#1b2a44,#0f192c); border:1px solid #2b4c83;
+  box-shadow:0 10px 24px #0007; color:#e5e7eb; font-weight:900; font-size:22px;
+  user-select:none; -webkit-user-select:none;
+}
+.btnE:active{ transform:scale(.98); }
+@media (min-width:901px){
+  #touch{ display:none; } /* oculta controles en desktop */
+}
+
+
+  </style>
+</head>
+<body>
+  <div id="start" class="panel" style="display:flex">
+    <div class="scene">
+      <div class="sun"></div>
+      <div class="hill h1"></div>
+      <div class="hill h2"></div>
+      <div class="cloud c1"></div>
+      <div class="cloud c2"></div>
+      <div class="cloud c3"></div>
+    </div>
+    <div class="hero">
+      <h1>¡BIENVENID@! 🎮✨</h1>
+      <p>Gracias por probar mi proyecto de Inglés: Presente Simple, <i>could</i> y vocabulario de viajes/literatura/transporte.</p>
+      <p>-Hiram González-</p>
+      <button class="btn" id="btnStart">¡Empezar aventura!</button>
+    </div>
+  </div>
+
+  <canvas id="game"></canvas>
+  <div id="touch">
+  <div id="joy" class="joy"><div id="thumb" class="thumb"></div></div>
+  <div id="btnE" class="btnE">E</div>
+</div>
+  <div id="fade"></div>
+  <div id="loading"><div class="loader"><div class="ring"></div><div class="bar"><i></i></div><div class="caption" id="loadingText">Cargando…</div></div></div>
+  <div id="banner"><div class="pill"><h2 id="bannerText">PRIMAVERA</h2></div></div>
+
+  <div id="ui">
+    <div class="hud">Nivel: <b id="levelHUD">1/3</b> · Tema: <b id="topicHUD">—</b> · Puntos: <b id="score">0</b> · Llave: <span id="keysHUD">0/1</span></div>
+      <canvas id="mini" class="minimap"></canvas>
+    <div class="prompt" id="prompt" style="display:none">Presiona <b>E</b> para interactuar</div>
+
+    <div class="panel" id="quiz">
+      <div class="card">
+        <header>
+          <div>Pregunta <span id="qNum">1</span>/5</div>
+          <button class="btn" onclick="closeQuiz()">Cerrar</button>
+        </header>
+        <main>
+          <h3 id="qText">…</h3>
+          <div id="qOpts"></div>
+        </main>
+      </div>
+    </div>
+
+    <div class="panel" id="fail">
+      <div class="card">
+        <header><div class="title">¡Has perdido este reto! 😢</div></header>
+        <main>
+          <p>Te excediste de <b>2 errores</b>. Inténtalo de nuevo o vuelve al inicio.</p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px">
+            <button class="btn" id="btnRetry">Reintentar este nivel</button>
+            <button class="btn" id="btnFailHome">Volver al inicio</button>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div class="panel" id="end">
+      <div class="card">
+        <header><div>¡Completado!</div></header>
+        <main>
+          <p>¡Gracias por jugar <b>English Quest</b>! 🎉</p>
+          <p>Este proyecto fue creado por <b>Hiram Developer</b>. Tu puntaje final: <b id="finalScore">0</b></p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px">
+            <button class="btn" onclick="resetGame()">Reiniciar nivel 1</button>
+            <button class="btn" id="btnHome">Volver al inicio</button>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ===== FLAGS =====
+var TEST_MODE=false; // evita efectos visuales en pruebas internas
+
+const TILE_EMPTY = 0;   // césped
+const TILE_SOLID = 1;   // árboles, casas
+const TILE_DOOR  = 2;   // puerta
+const TILE_PATH  = 3;   // caminos
+
+
+// ===== CONSTS =====
+var TILE=16; var VIEW_W=48, VIEW_H=36; // se recalcula a tamaño de ventana
+var WORLD_W=140, WORLD_H=70; // mundo aún más grande
+var cvs=document.getElementById('game');
+var ctx=cvs.getContext('2d');
+var mini = document.getElementById('mini');
+var mctx = mini.getContext('2d');
+mctx.imageSmoothingEnabled = false;
+var MM_SCALE = 3; // 1 px por tile
+
+
+// responsive canvas a pantalla completa
+function resize(){ cvs.width=window.innerWidth; cvs.height=window.innerHeight; VIEW_W=Math.floor(cvs.width/TILE); VIEW_H=Math.floor(cvs.height/TILE); }
+addEventListener('resize', resize); resize();
+
+// ===== polyfills / compat =====
+function myHypot(a,b){ if(typeof Math.hypot==='function'){ return Math.hypot(a,b); } return Math.sqrt(a*a + b*b); }
+
+// ===== PARTICLES por estación =====
+var particles=[]; function spawnParticles(){ particles=[]; var s=levels[state.level].season; var count=Math.floor((cvs.width*cvs.height)/42000);
+  var i; if(s==='autumn'){ for(i=0;i<count;i++){ particles.push({x:Math.random()*cvs.width,y:Math.random()*cvs.height,vx:(Math.random()*0.3)+0.1,vy:(Math.random()*0.3)+0.2,t:'leaf'}); } }
+  else if(s==='winter'){ for(i=0;i<count*1.2;i++){ particles.push({x:Math.random()*cvs.width,y:Math.random()*cvs.height,vx:(Math.random()*0.2)-0.1,vy:(Math.random()*0.3)+0.2,t:'snow'}); } }
+  else { for(i=0;i<count;i++){ particles.push({x:Math.random()*cvs.width,y:Math.random()*cvs.height,vx:(Math.random()*0.2)-0.1,vy:0.05+Math.random()*0.1,t:'firefly',p:Math.random()*Math.PI*2}); } }
+}
+function stepParticles(dt){ var i, p; for(i=0;i<particles.length;i++){ p=particles[i]; if(p.t==='snow'){ p.x+=p.vx*dt*0.06; p.y+=p.vy*dt*0.06; if(p.y>cvs.height){ p.y=-5; p.x=Math.random()*cvs.width; } }
+  else if(p.t==='leaf'){ p.x+=p.vx*dt*0.06; p.y+=p.vy*dt*0.06; if(p.x>cvs.width) p.x=-5; if(p.y>cvs.height) p.y=-5; }
+  else { p.p+=dt*0.002; p.x+=Math.cos(p.p)*0.05*dt; p.y+=Math.sin(p.p*0.7)*0.03*dt; if(p.x<0) p.x=cvs.width; if(p.x>cvs.width) p.x=0; if(p.y<0) p.y=cvs.height; if(p.y>cvs.height) p.y=0; } } }
+function drawParticles(){ var i,p; for(i=0;i<particles.length;i++){ p=particles[i]; if(p.t==='snow'){ ctx.fillStyle='rgba(255,255,255,.85)'; ctx.fillRect(p.x,p.y,2,2); } else if(p.t==='leaf'){ ctx.fillStyle='rgba(186,93,30,.9)'; ctx.fillRect(p.x,p.y,2,2); } else { ctx.fillStyle='rgba(255,255,190,.8)'; ctx.fillRect(p.x,p.y,2,2); } } }
+
+// ===== QUIZZES =====
+var bank={
+  present:[
+    {q:'(presente simple) She ____ (watch) TV at night.', opts:['watch','watches','watchs'], ok:1},
+    {q:'(negativa) They ____ (not/go) to school by car.', opts:['don\'t go','doesn\'t go','aren\'t go'], ok:0},
+    {q:'(interrogativa) ____ he live in Mexico?', opts:['Do','Does','Is'], ok:1},
+    {q:'Choose the correct: It ____ a lot in April.', opts:['rain','rains','is rain'], ok:1},
+    {q:'Third person rule: He ____ (study) English.', opts:['study','studies','studys'], ok:1}
+  ],
+  could:[
+    {q:'(habilidad pasada) When I was five, I ____ swim.', opts:['can','could','was able can'], ok:1},
+    {q:'(posibilidad pasada) It ____ have rained last night.', opts:['can','could','was able to'], ok:1},
+    {q:'(logro específico) After many tries, she ____ solve it.', opts:['could','was able to','could have'], ok:1},
+    {q:'(negativa) He ____ come because he was sick.', opts:['couldn\'t','didn\'t could','wasn\'t able can'], ok:0},
+    {q:'Better option for a single achievement yesterday:', opts:['could','was able to','can'], ok:1}
+  ],
+  vocab:[
+    {q:'boarding pass', opts:['pase para abordar','aduana','boleto de tren'], ok:0},
+    {q:'plot', opts:['trama','personaje','género'], ok:0},
+    {q:'timetable', opts:['horario','boleto','andén'], ok:0},
+    {q:'customs', opts:['aduana','itinerario','maleta'], ok:0},
+    {q:'narrator', opts:['quien cuenta la historia','clímax','desenlace'], ok:0}
+  ]
+};
+
+// ===== NIVELES =====
+var levels=[
+  { // PRIMAVERA
+    season:'spring', topic:'present',
+    npc:{x:18,y:14,name:'Ava'}, door:{x:120,y:52},
+    trees:[[6,30],[13,14],[20,22],[25,13],[30,32],[36,14],[42,22],[10,26],[16,18],[70,20],[78,30],[84,26],[96,30],[124,60],[132,58],[110,34],[100,40]],
+    barns:[[12,8],[40,28],[72,34],[100,20]],
+    paths:[[6,40,120,3],[20,10,3,72],[56,34,60,3]]
+  },
+ { // OTOÑO (ajustado al mundo 140x70)
+  season:'autumn', topic:'could',
+  npc:{x:48,y:44,name:'Liam'}, door:{x:18,y:52}, // door no importa si luego la aleatorizas
+  trees:[[8,48],[12,20],[20,28],[26,17],[32,46],[38,24],[44,34],[52,32],[20,64],[72,46],[84,42],[94,52],[30,60],[40,64],[60,60],[96,60]],
+  barns:[[70,12],[18,40],[90,60]],               // y+4 ≤ 70
+  paths:[[2,58,136,3],[36,30,58,3],[36,12,3,48]] // y+alto ≤ 70, x+ancho ≤ 140
+}
+,
+  { // INVIERNO (final)
+    season:'winter', topic:'vocab',
+    npc:{x:52,y:50,name:'Noah'}, door:null,
+    trees:[[10,12],[14,16],[30,20],[34,24],[42,12],[18,22],[64,38],[68,42],[76,46],[90,30],[104,26],[120,40]],
+    barns:[[26,12],[66,36],[112,28]],
+    paths:[[22,50,92,3],[44,10,3,56]]
+  }
+];
+
+// ===== ESTADO =====
+var state={level:0, score:0, hasKey:false, done:false};
+var showDoorMarker=false; var transitioning=false;
+var player={x:3.5,y:3.5,speed:0.010}; // velocidad base (sin inercia)
+var map=[], trees=[], barns=[], door=null, npcs=[], paths=[], animals=[];
+var camXF=0, camYF=0, camX=0, camY=0; // cámara flotante + entera
+var lastDirX=1, lastDirY=0, stepPhase=0; // animación jugador
+var stepTimer=0; // sonido de pasos
+
+// ===== WORLD BUILDING =====
+function buildLevel(idx){
+  var L = levels[idx];
+  // mapa base
+  map = new Array(WORLD_H); var y,x; for(y=0;y<WORLD_H;y++){ map[y]=new Array(WORLD_W); for(x=0;x<WORLD_W;x++){ map[y][x]=0; } }
+  for(y=0;y<WORLD_H;y++) for(x=0;x<WORLD_W;x++) if(x===0||y===0||x===WORLD_W-1||y===WORLD_H-1) map[y][x]=1;
+  // paths
+  paths=[]; if(L.paths){ var i; for(i=0;i<L.paths.length;i++){ var p=L.paths[i]; paths.push([p[0],p[1],p[2],p[3]]); } }
+ for (pi=0; pi<paths.length; pi++){
+  var px = Math.max(0, Math.floor(paths[pi][0]));
+  var py = Math.max(0, Math.floor(paths[pi][1]));
+  var pw = Math.max(1, Math.round(paths[pi][2]));
+  var ph = Math.max(1, Math.round(paths[pi][3]));
+
+  // recorte por seguridad
+  if (px + pw > WORLD_W) pw = WORLD_W - px;
+  if (py + ph > WORLD_H) ph = WORLD_H - py;
+
+  for (yy=0; yy<ph; yy++){
+    for (xx=0; xx<pw; xx++){
+      gx = px + xx; gy = py + yy;
+      if (gx>0 && gy>0 && gx<WORLD_W-1 && gy<WORLD_H-1){
+        map[gy][gx] = TILE_PATH;
+      }
+    }
+  }
+}
+
+  // deco base
+// árboles base (con límites)
+trees=[];
+for (i=0;i<L.trees.length;i++){
+  var tx=L.trees[i][0], ty=L.trees[i][1];
+  if (tx>=1 && ty>=1 && tx<WORLD_W-1 && ty<WORLD_H-1){
+    trees.push({x:tx,y:ty});
+    map[ty][tx]=1;
+  }
+}
+
+// graneros base (con límites)
+barns=[];
+for (i=0;i<L.barns.length;i++){
+  var bx=L.barns[i][0], by=L.barns[i][1];
+  // asegura que el rect 6x4 entre en el mundo
+  if (bx>=1 && by>=1 && bx+6<=WORLD_W-1 && by+4<=WORLD_H-1){
+    barns.push({x:bx,y:by});
+    for (yy=0; yy<4; yy++){
+      for (xx=0; xx<6; xx++){
+        map[by+yy][bx+xx]=1;
+      }
+    }
+  }
+}
+
+  // Procedural extra: +caminos +árboles +granjas
+  addExtraDecor();
+  // puerta y npc
+  if (L.door) {
+  // Generar posición aleatoria cercana al inicio
+  var minX = 25, maxX = 50;
+  var minY = 25, maxY = 50;
+  var dx = Math.floor(Math.random() * (maxX - minX + 1)) + minX;
+  var dy = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
+
+  door = {x: dx, y: dy};
+
+  // Limpiar área alrededor para que no haya casas ni árboles
+  var radius = 4;
+  for (var ty = dy - radius; ty <= dy + radius; ty++){
+    for (var tx = dx - radius; tx <= dx + radius; tx++){
+      if (tx < 0 || ty < 0 || tx >= WORLD_W || ty >= WORLD_H) continue;
+
+      trees = trees.filter(t => !(t.x === tx && t.y === ty));
+      barns = barns.filter(b => !(tx >= b.x && tx < b.x + 6 && ty >= b.y && ty < b.y + 4));
+
+      map[ty][tx] = 0;
+    }
+  }
+
+  // Colocar puerta
+  map[dy][dx] = 2;
+} else {
+  door = null;
+}
+
+  npcs=[{x:L.npc.x,y:L.npc.y,r:0.6,topic:L.topic,name:L.npc.name}];
+  // animales con IA básica
+  animals=[]; var aCount=10; for(i=0;i<aCount;i++){ animals.push(makeAnimal(i)); }
+  // jugador
+  player.x=3.5; player.y=3.5; state.hasKey=false; showDoorMarker=false; transitioning=false; stepPhase=0; stepTimer=0;
+  // cámara
+  camXF=Math.max(0, Math.min(WORLD_W-VIEW_W, player.x - VIEW_W/2)); camYF=Math.max(0, Math.min(WORLD_H-VIEW_H, player.y - VIEW_H/2));
+  camX=camXF|0; camY=camYF|0;
+  // HUD
+  document.getElementById('levelHUD').textContent=(idx+1)+"/"+levels.length;
+  document.getElementById('topicHUD').textContent=L.topic;
+  spawnParticles();
+  mini.width  = WORLD_W * MM_SCALE;
+mini.height = WORLD_H * MM_SCALE;
+
+}
+
+function addExtraDecor(){
+  // ===== CONTROLES RÁPIDOS =====
+  var HOUSE_W = 6, HOUSE_H = 4;     // tamaño de cada casa en tiles
+  var HOUSE_GAP_X = 18, HOUSE_GAP_Y = 14; // separación uniforme entre casas
+  var HOUSE_OFFSET_X = 8, HOUSE_OFFSET_Y = 8; // desde dónde empieza la cuadrícula
+  var TREE_MARGIN_FROM_PATH = 1;    // margen mínimo para no "tocar" caminos
+  var TREE_DENSITY = 0.80;          // 0..1 (menor => más árboles). Pon 0.7 si quieres todavía más
+  var EXTRA_ROAD_GRID = true;      // pon true si quieres sumar rejilla de caminos en todo el mapa
+  var ROAD_SPACING = 40, ROAD_THICK = 3;
+
+  // ===== HELPERS =====
+  function rectsOverlap(ax,ay,aw,ah, bx,by,bw,bh){
+    return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+  }
+  function isOnPath(x,y){
+    for (var i=0;i<paths.length;i++){
+      var p=paths[i]; if (x>=p[0] && x<p[0]+p[2] && y>=p[1] && y<p[1]+p[3]) return true;
+    }
+    return false;
+  }
+  function nearPath(x,y,margin){
+    // ¿(x,y) cae dentro de cualquier camino expandido por 'margin'?
+    for (var i=0;i<paths.length;i++){
+      var p=paths[i], px=p[0]-margin, py=p[1]-margin, pw=p[2]+margin*2, ph=p[3]+margin*2;
+      if (x>=px && x<px+pw && y>=py && y<py+ph) return true;
+    }
+    return false;
+  }
+ function canPlaceHouse(gx,gy){
+  // Casa HOUSE_W x HOUSE_H: debe estar dentro del mapa
+  if (gx<1 || gy<1 || gx+HOUSE_W>=WORLD_W-1 || gy+HOUSE_H>=WORLD_H-1) return false;
+
+  // Recorremos cada tile que ocuparía la casa
+  for (var yy=0; yy<HOUSE_H; yy++){
+    for (var xx=0; xx<HOUSE_W; xx++){
+      var x = gx+xx, y = gy+yy;
+
+      // Debe estar en césped (0) y no ser parte de un camino
+      if (map[y][x] !== 0) return false;
+      if (isOnPath(x,y)) return false;
+    }
+  }
+
+  // Verificamos margen: que no toque caminos ni por un lado
+  if (nearPath(gx, gy, 1) || nearPath(gx+HOUSE_W-1, gy, 1) ||
+      nearPath(gx, gy+HOUSE_H-1, 1) || nearPath(gx+HOUSE_W-1, gy+HOUSE_H-1, 1)) {
+    return false;
+  }
+
+  return true;
+}
+
+  function placeHouse(gx,gy){
+    barns.push({x:gx,y:gy});
+    for (var yy=0; yy<HOUSE_H; yy++)
+      for (var xx=0; xx<HOUSE_W; xx++)
+        map[gy+yy][gx+xx] = 1; // sólido
+  }
+
+ function carveRoadRect(x,y,w,h){
+  // fuerza enteros y tamaño mínimo
+  x = Math.max(0, Math.floor(x));
+  y = Math.max(0, Math.floor(y));
+  w = Math.max(1, Math.round(w));
+  h = Math.max(1, Math.round(h));
+
+  // recorta si se sale del mundo
+  if (x + w > WORLD_W) w = WORLD_W - x;
+  if (y + h > WORLD_H) h = WORLD_H - y;
+
+  paths.push([x,y,w,h]);
+
+  for (var yy=0; yy<h; yy++){
+    for (var xx=0; xx<w; xx++){
+      var gx=x+xx, gy=y+yy;
+      if (gx>0 && gy>0 && gx<WORLD_W-1 && gy<WORLD_H-1){
+        map[gy][gx] = TILE_PATH;
+      }
+    }
+  }
+}
+
+
+  // ===== (Opcional) Rejilla de caminos por todo el mapa =====
+  if (EXTRA_ROAD_GRID){
+    for (var y=6; y<WORLD_H-6; y+=ROAD_SPACING) carveRoadRect(2,y,WORLD_W-4,ROAD_THICK);
+    for (var x=6; x<WORLD_W-6; x+=ROAD_SPACING) carveRoadRect(x,2,ROAD_THICK,WORLD_H-4);
+  }
+
+  // ===== LIMPIEZA: quitar árboles que toquen caminos (por si venían del nivel) =====
+  if (trees && trees.length){
+    var kept=[];
+    for (var i=0;i<trees.length;i++){
+      var t=trees[i];
+      if (nearPath(t.x, t.y, TREE_MARGIN_FROM_PATH)) {
+        if (map[t.y][t.x]===1) map[t.y][t.x]=0; // liberar tile
+      } else {
+        kept.push(t);
+      }
+    }
+    trees = kept;
+  }
+
+  // ===== CASAS UNIFORMES (sin aleatoriedad) =====
+  // Recorremos en una malla fija
+  for (var by=HOUSE_OFFSET_Y; by<=WORLD_H-1-HOUSE_H; by+=HOUSE_GAP_Y){
+    for (var bx=HOUSE_OFFSET_X; bx<=WORLD_W-1-HOUSE_W; bx+=HOUSE_GAP_X){
+      if (canPlaceHouse(bx,by)) placeHouse(bx,by);
+    }
+  }
+
+  // ===== MUCHOS ÁRBOLES, SOLO EN CÉSPED Y A MARGEN DE CAMINOS =====
+  // Recorremos todo el mundo y sembramos por ruido hash
+  for (var ty=1; ty<WORLD_H-1; ty++){
+    for (var tx=1; tx<WORLD_W-1; tx++){
+      if (map[ty][tx]!==0) continue;                 // sólo césped libre
+      if (nearPath(tx,ty, TREE_MARGIN_FROM_PATH)) continue; // respetar margen al camino
+      // evita pegar árboles a las casas (opcional: 1 tile de respiro)
+      var touchHouse = false;
+      // chequeo rápido del tile alrededor
+      for (var yy=-1; yy<=1 && !touchHouse; yy++){
+        for (var xx=-1; xx<=1; xx++){
+          var x2=tx+xx, y2=ty+yy;
+          if (x2<=0||y2<=0||x2>=WORLD_W-1||y2>=WORLD_H-1) continue;
+          if (map[y2][x2]===1) { // podría ser casa u otro árbol; si quieres permitir árbol-árbol, borra este if
+            // Permitamos árbol-árbol, pero NO encima de casa: comprobemos si (x2,y2) cae en algún barn rect
+            for (var b=0;b<barns.length;b++){
+              var bx=barns[b].x, by=barns[b].y;
+              if (rectsOverlap(tx,ty,1,1, bx,by,HOUSE_W,HOUSE_H)){ touchHouse=true; break; }
+            }
+          }
+        }
+      }
+      if (touchHouse) continue;
+
+      // ruido hash para densidad
+      if (hhash(tx*7, ty*11) > TREE_DENSITY){
+        trees.push({x:tx,y:ty});
+        map[ty][tx]=1; // sólido (tronco)
+      }
+    }
+  }
+
+  // ===== OPCIONAL: despejar 1 tile alrededor de caminos para que se noten aún más =====
+  for (var k=0;k<paths.length;k++){
+    var p=paths[k], px=p[0], py=p[1], pw=p[2], ph=p[3];
+    for (var yy=-1; yy<ph+1; yy++){
+      for (var xx=-1; xx<pw+1; xx++){
+        var gx=px+xx, gy=py+yy;
+        if (gx<=0||gy<=0||gx>=WORLD_W-1||gy>=WORLD_H-1) continue;
+        // sólo limpias árboles, no casas
+        var isBarnTile=false;
+        for (var b=0;b<barns.length;b++){
+          if (rectsOverlap(gx,gy,1,1, barns[b].x,barns[b].y,HOUSE_W,HOUSE_H)) { isBarnTile=true; break; }
+        }
+        if (!isBarnTile && map[gy][gx]===1){
+          // si ese sólido corresponde a un árbol (no casa), libéralo
+          // (comprobación rápida: si no cae dentro de ningún barn, lo tratamos como árbol)
+          map[gy][gx]=0;
+        }
+      }
+    }
+  }
+}
+
+
+function centerCameraSmooth(dt){
+  var targetX=Math.max(0, Math.min(WORLD_W-VIEW_W, player.x - VIEW_W/2));
+  var targetY=Math.max(0, Math.min(WORLD_H-VIEW_H, player.y - VIEW_H/2));
+  var k = Math.min(1, dt*0.008); // factor de suavizado dependiente del frame time
+  camXF = camXF + (targetX - camXF)*k; camYF = camYF + (targetY - camYF)*k; // lerp
+  camX = Math.floor(camXF); camY = Math.floor(camYF);
+}
+
+// ===== UTILS =====
+function hhash(x,y){ var n=(x*374761393 + y*668265263)>>>0; n=(n^(n>>>13))*1274126177>>>0; return ((n^(n>>>16))>>>0)/4294967295; }
+
+function isPathTile(x, y){
+  x = Math.floor(x); y = Math.floor(y);
+  if(x<0||y<0||x>=WORLD_W||y>=WORLD_H) return false;
+  return map[y][x] === TILE_PATH;
+}
+
+function randomPointOnPath(){
+  if (!paths.length) return {x: 3.5, y: 3.5}; // fallback
+  var k = (Math.random()*paths.length)|0;
+  var p = paths[k]; // [x,y,w,h]
+  var rx = p[0] + ((Math.random()*p[2])|0) + 0.5;
+  var ry = p[1] + ((Math.random()*p[3])|0) + 0.5;
+  return {x: rx, y: ry};
+}
+
+// corrige una posición que cayó fuera de camino, proyectándola al punto de camino más cercano (a nivel de rectángulos)
+function clampToNearestPath(x, y){
+  if (isPathTile(x,y)) return {x,y};
+  var best = null, bestD = Infinity;
+  for (var i=0;i<paths.length;i++){
+    var p = paths[i], px=p[0], py=p[1], pw=p[2], ph=p[3];
+    // clamp punto a rectángulo
+    var cx = Math.max(px+0.5, Math.min(px+pw-0.5, x));
+    var cy = Math.max(py+0.5, Math.min(py+ph-0.5, y));
+    var dx = cx-x, dy = cy-y, d = dx*dx+dy*dy;
+    if (d < bestD){ bestD = d; best = {x:cx, y:cy}; }
+  }
+  return best || {x,y};
+}
+
+
+// ===== VISUAL =====
+function drawGrass(){
+  var season = levels[state.level].season;
+  // cielo
+  var skyGrad=ctx.createLinearGradient(0,0,0,cvs.height);
+  if(season==='winter'){ skyGrad.addColorStop(0,'#d6ecff'); skyGrad.addColorStop(1,'#bcdcf2'); }
+  else if(season==='autumn'){ skyGrad.addColorStop(0,'#ffd6a6'); skyGrad.addColorStop(1,'#c6a17a'); }
+  else { skyGrad.addColorStop(0,'#c9f4ff'); skyGrad.addColorStop(1,'#87ceeb'); }
+  ctx.fillStyle=skyGrad; ctx.fillRect(0,0,cvs.width,cvs.height);
+  ctx.save();
+  var offX=-(camXF - camX)*TILE, offY=-(camYF - camY)*TILE; ctx.translate(offX,offY);
+  // piso por estación
+  var y,x; for(y=0;y<VIEW_H+1;y++){
+    for(x=0;x<VIEW_W+1;x++){
+      var tx=camX+x, ty=camY+y; var rx=x*TILE, ry=y*TILE; var n=(Math.sin((tx*9+ty*7)*0.35)+1)/2;
+      if(season==='winter'){
+        var g=Math.floor(232-n*48); ctx.fillStyle='rgb('+g+','+g+','+g+')'; ctx.fillRect(rx,ry,TILE,TILE);
+        if(hhash(tx,ty)>0.85){ ctx.fillStyle='rgba(120,160,200,.15)'; ctx.fillRect(rx+3,ry+6,6,2); }
+        var i; for(i=0;i<5;i++){ var px=rx+(i*3%TILE), py=ry+((i*5+ tx + ty)%TILE); if(((i+tx+ty)&3)===0) { ctx.fillStyle='rgba(255,255,255,.14)'; ctx.fillRect(px,py,1,1);} }
+      } else if(season==='autumn'){
+        var o1=Math.floor(150+n*45), o2=Math.floor(80+n*35);
+        ctx.fillStyle='rgb('+o1+','+Math.floor(o2*0.75)+',0)'; ctx.fillRect(rx,ry,TILE,TILE);
+        if(hhash(tx,ty)>0.88){ ctx.fillStyle='#b45309'; ctx.fillRect(rx+(tx%7),ry+(ty%5),2,1); }
+        if(hhash(tx+3,ty+2)>0.94){ ctx.fillStyle='#92400e'; ctx.fillRect(rx+5,ry+8,1,1); }
+        if(hhash(tx*2,ty*2)>0.96){ ctx.fillStyle='rgba(60,30,10,.2)'; ctx.fillRect(rx+2,ry+3,4,2); }
+      } else {
+        var g1=Math.floor(110+n*40), g2=Math.floor(160+n*60); var r=Math.floor(g1*0.35), gg=g2, b=Math.floor(g1*0.55);
+        ctx.fillStyle='rgb('+r+','+gg+','+b+')'; ctx.fillRect(rx,ry,TILE,TILE);
+        var j; for(j=0;j<3;j++){ var bx=rx+((j*5 + tx*3 + ty*5 + j)%TILE), by=ry+(12-(j%2)*3); ctx.fillStyle = 'rgba(255,255,255,'+(0.035+n*0.04)+')'; ctx.fillRect(bx,by,1,3); }
+        if(hhash(tx+7,ty+3)>0.96){ ctx.fillStyle='#84cc16'; ctx.fillRect(rx+5,ry+5,1,1); }
+      }
+    }
+  }
+  ctx.restore();
+}
+function drawPaths(){
+  ctx.save(); var offX=-(camXF - camX)*TILE, offY=-(camYF - camY)*TILE; ctx.translate(offX,offY);
+  var s=levels[state.level].season; var c=(s==='winter')? '#d8dbe2' : (s==='autumn'? '#a86b3a' : '#8d5a3b'); var edge=(s==='winter')? '#e5e7eb' : (s==='autumn'? '#d7a56f' : '#c08a5f');
+  var i; for(i=0;i<paths.length;i++){
+    var x=paths[i][0], y=paths[i][1], w=paths[i][2], h=paths[i][3];
+    var vx=(x - camX)*TILE, vy=(y - camY)*TILE; var vw=w*TILE, vh=h*TILE;
+    if(vx< cvs.width && vy< cvs.height && vx+vw> -1 && vy+vh> -1){ ctx.fillStyle=c; ctx.fillRect(vx,vy,vw,vh); ctx.fillStyle=edge; ctx.fillRect(vx,vy,vw,1); ctx.fillRect(vx,vy,1,vh); }
+  }
+  ctx.restore();
+}
+
+function drawBarn(b){
+  ctx.save(); var offX=-(camXF - camX)*TILE, offY=-(camYF - camY)*TILE; ctx.translate(offX,offY);
+  var s=levels[state.level].season; var x=(b.x-camX)*TILE, y=(b.y-camY)*TILE; if(x<-160||y<-96||x>cvs.width||y>cvs.height){ ctx.restore(); return; }
+  // Granero tipo "quonset" (techo curvo, sin pico)
+  ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(x,y+4*TILE,6*TILE,3); // sombra
+  var body = s==='winter' ? '#e5e7eb' : (s==='autumn' ? '#c4632f' : '#d89553');
+  ctx.fillStyle=body; ctx.fillRect(x,y+TILE,6*TILE,3*TILE);
+  var roof = s==='winter' ? '#9ca3af' : '#7a2a0b';
+  ctx.fillStyle=roof; ctx.beginPath(); ctx.moveTo(x, y+TILE); ctx.quadraticCurveTo(x+3*TILE, y-10, x+6*TILE, y+TILE); ctx.lineTo(x+6*TILE, y+TILE+4); ctx.lineTo(x, y+TILE+4); ctx.closePath(); ctx.fill();
+  if(s==='winter'){ ctx.fillStyle='rgba(255,255,255,.9)'; ctx.fillRect(x+6, y-6, 6*TILE-12, 3); }
+  ctx.fillStyle='rgba(0,0,0,.12)'; var lx; for(lx=0; lx<6; lx++){ ctx.fillRect(x+lx*TILE-1,y+TILE,2,3*TILE); }
+  ctx.fillStyle='#4b2e16'; ctx.fillRect(x+2*TILE, y+2*TILE, 2*TILE, 2*TILE-2); // puerta
+  ctx.fillStyle='#d9b99b'; ctx.fillRect(x+3*TILE-1, y+3*TILE-2, 2,2);
+  ctx.fillStyle=s==='winter'?'#93c5fd':'#fde68a'; ctx.fillRect(x+10, y+TILE+6, 10,8); ctx.fillRect(x+6*TILE-20, y+TILE+6, 10,8); // ventiluces
+  ctx.restore();
+}
+
+function drawAnimal(a){
+  ctx.save();
+  var offX=-(camXF - camX)*TILE, offY=-(camYF - camY)*TILE; ctx.translate(offX,offY);
+  var px=(a.x-camX)*TILE, py=(a.y-camY)*TILE;
+  if(px<-32||py<-32||px>cvs.width||py>cvs.height){ ctx.restore(); return; }
+
+  var bob = a.isMoving ? Math.sin(a.stepPhase*0.08)*1.2 : 0;
+  var swing = a.isMoving ? Math.sin(a.stepPhase*0.15)*1.5 : 0;
+
+  // sombra pegada al suelo (sin bob)
+  ctx.fillStyle='rgba(0,0,0,.22)';
+  ctx.beginPath();
+  ctx.ellipse(px, py+6, 10, 4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  if(a.t==='sheep'){
+    // cuerpo
+    ctx.fillStyle='#f2f2f2'; ctx.fillRect(px-7,py-7+bob,14,12);
+    ctx.fillStyle='#5b5b5b'; ctx.fillRect(px-7,py-7+bob,14,2);
+    // patas (swing sutil como brazos del player)
+    ctx.fillStyle='#d1d5db';
+    ctx.fillRect(px-6,py+5+bob+(swing>0?0:1),2,3);
+    ctx.fillRect(px+4,py+5+bob+(swing<0?0:1),2,3);
+    // ojo
+    ctx.fillStyle='#111827'; ctx.fillRect(px+2,py-3+bob,2,2);
+  } else { // cow
+    ctx.fillStyle='#ffffff'; ctx.fillRect(px-8,py-7+bob,16,12);
+    ctx.fillStyle='#1f2937'; ctx.fillRect(px-5,py-3+bob,3,3); ctx.fillRect(px+1,py-1+bob,3,3);
+    // patas
+    ctx.fillStyle='#111';
+    ctx.fillRect(px-7,py+5+bob+(swing>0?0:1),2,3);
+    ctx.fillRect(px+3,py+5+bob+(swing<0?0:1),2,3);
+    // cuernito
+    ctx.fillStyle='#fde68a'; ctx.fillRect(px+5,py-5+bob,3,2);
+  }
+
+  ctx.restore();
+}
+
+function drawTree(tx,ty){
+  ctx.save(); var offX=-(camXF - camX)*TILE, offY=-(camYF - camY)*TILE; ctx.translate(offX,offY);
+  var s=levels[state.level].season; var px=(tx-camX)*TILE, py=(ty-camY)*TILE; if(px<-32||py<-32||px>cvs.width||py>cvs.height){ ctx.restore(); return; }
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(px+TILE, py+TILE+7, 12, 5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle='#6b3c1d'; ctx.fillRect(px+TILE-3, py+TILE-3, 6, 16); ctx.fillStyle='rgba(255,255,255,.06)'; ctx.fillRect(px+TILE-2, py+TILE-2, 1,14);
+  var wind = Math.sin(timeNow*0.002 + tx*0.3 + ty*0.2)*2;
+  var palette = s==='winter'? ['#d9e7ef','#c7d7e2','#eef6fb'] : (s==='autumn'? ['#b85c2e','#d28f36','#a84a1c'] : ['#2f7d32','#3c9a43','#267032']);
+  var blobs=[{r:16,ox:wind*0.8,oy:-16,c:palette[0]},{r:14,ox:-9+wind,oy:-11,c:palette[1]},{r:13,ox:9+wind,oy:-10,c:palette[2]},{r:11,ox:wind*0.5,oy:-3,c:palette[0]}];
+  var bi; for(bi=0;bi<blobs.length;bi++){ var b=blobs[bi]; ctx.fillStyle=b.c; ctx.beginPath(); ctx.arc(px+TILE+b.ox, py+TILE+b.oy, b.r, 0, Math.PI*2); ctx.fill(); }
+  if(hhash(tx,ty)>0.92){ ctx.fillStyle=s==='autumn'?'#c26d2b':'#335f2e'; ctx.fillRect(px+TILE+(tx%6)-3, py+TILE+(ty%5)-6, 1,1); }
+  ctx.restore();
+}
+
+// Personajes: mejoras ligeras de luz/sombra
+function drawCharacter(px,py,primary,dirX,dirY,isPlayer){
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(px, py+4, 8, 3, 0, 0, Math.PI*2); ctx.fill();
+  var bob = (isPlayer && isMoving) ? Math.sin(stepPhase*0.08)*1.2 : 0;
+  var swing = (isPlayer && isMoving) ? Math.sin(stepPhase*0.15)*2 : 0;
+  ctx.fillStyle='#0b0f14'; ctx.fillRect(px-6, py-13+bob, 12, 14);
+  var grad=ctx.createLinearGradient(px-5,py-12+bob,px+5,py);
+  grad.addColorStop(0,'#0f172a'); grad.addColorStop(1,primary);
+  ctx.fillStyle=grad; ctx.fillRect(px-5, py-12+bob, 10, 12);
+  ctx.fillStyle='rgba(255,255,255,.12)'; ctx.fillRect(px-5, py-12+bob, 10, 2);
+  ctx.fillStyle='#f5deb3'; ctx.beginPath(); ctx.arc(px, py-16+bob, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle='#2b2b2b'; ctx.fillRect(px-6, py-19+bob, 12, 5);
+  ctx.fillStyle='#0b0f14'; var ex=dirX>0?2:(dirX<0?-3:-1); ctx.fillRect(px+ex, py-16+bob, 1,1); ctx.fillRect(px+ex+3, py-16+bob, 1,1);
+  ctx.fillStyle=primary; ctx.fillRect(px-7, py-10+bob+swing, 2, 8); ctx.fillRect(px+5, py-10+bob-swing, 2, 8);
+}
+
+function drawNPC(n){
+  var offX=-(camXF - camX)*TILE, offY=-(camYF - camY)*TILE; var px=(n.x-camX)*TILE+offX, py=(n.y-camY)*TILE+offY; if(px<-32||py<-32||px>cvs.width||py>cvs.height) return;
+  var body = n.topic==='present'?'#5aa6ff':(n.topic==='could'?'#40d37b':'#f59e0b');
+  drawCharacter(px,py,body,0,0,false);
+}
+
+var isMoving=false;
+function drawPlayer(){
+  var offX=-(camXF - camX)*TILE, offY=-(camYF - camY)*TILE; var px=(player.x-camX)*TILE+offX, py=(player.y-camY)*TILE+offY; var color='#2563eb'; drawCharacter(px,py,color,lastDirX,lastDirY,true);
+}
+function drawPlayerArrow(){
+  var offX = -(camXF - camX)*TILE, offY = -(camYF - camY)*TILE;
+  var px = (player.x - camX)*TILE + offX;
+  var py = (player.y - camY)*TILE + offY;
+
+  if (px < -20 || py < -40 || px > cvs.width+20 || py > cvs.height+20) return;
+
+  var bob = Math.sin((timeNow||performance.now()) * 0.012) * 4;
+
+  var ax = px;
+  var ay = py - 40 + bob; // altura ajustada
+
+  ctx.save();
+
+  // sombra/glow para legibilidad
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.moveTo(ax, ay-1);
+  ctx.lineTo(ax+7, ay+9);
+  ctx.lineTo(ax-7, ay+9);
+  ctx.closePath();
+  ctx.fill();
+
+  // degradado dorado
+  var grad = ctx.createLinearGradient(ax, ay, ax, ay+10);
+  grad.addColorStop(0, '#FFF8DC'); // más claro arriba
+  grad.addColorStop(1, '#FFD700'); // dorado intenso abajo
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = '#B8860B';
+  ctx.lineWidth = 1;
+
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(ax+6, ay+10);
+  ctx.lineTo(ax-6, ay+10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawDoors(){
+  if(!door) return; var offX=-(camXF - camX)*TILE, offY=-(camYF - camY)*TILE; var x=(door.x-camX)*TILE+offX, y=(door.y-camY)*TILE+offY; if(x<-16||y<-16||x>cvs.width||y>cvs.height) return; var locked=!state.hasKey;
+  ctx.fillStyle='#4b2e16'; ctx.fillRect(x-2,y-2,TILE+4,TILE+4);
+  ctx.fillStyle= locked ? '#7c4a21' : (levels[state.level].season==='winter'? '#d8dbe2' : '#8d5a3b');
+  ctx.fillRect(x,y,TILE,TILE); ctx.fillStyle='#d4a373'; ctx.fillRect(x+TILE/2-1,y+TILE/2-1,2,2);
+  if(showDoorMarker && !locked){ var bob=Math.sin(timeNow*0.005)*4; ctx.fillStyle='#ffd166'; ctx.beginPath(); ctx.moveTo(x+TILE/2, y-10+bob); ctx.lineTo(x+TILE/2-6, y-2+bob); ctx.lineTo(x+TILE/2+6, y-2+bob); ctx.closePath(); ctx.fill(); }
+}
+
+function drawWorld(){ drawGrass(); drawPaths(); var i; for(i=0;i<barns.length;i++) drawBarn(barns[i]); drawDoors(); var j; for(j=0;j<trees.length;j++) drawTree(trees[j].x,trees[j].y); for(i=0;i<animals.length;i++) drawAnimal(animals[i]); drawParticles(); }
+
+// ===== INPUT / MOVIMIENTO =====
+var keysDown={};
+addEventListener('keydown',function(e){ keysDown[e.key.toLowerCase()]=true; });
+addEventListener('keyup',function(e){ keysDown[e.key.toLowerCase()]=false; });
+
+// Movimiento sin inercia + cámara suave + pasos
+function physicsStep(dt){
+  // 1) teclado -> ax/ay
+  var ax=0, ay=0;
+  if(keysDown['arrowleft']||keysDown['a']) ax-=1;
+  if(keysDown['arrowright']||keysDown['d']) ax+=1;
+  if(keysDown['arrowup']||keysDown['w']) ay-=1;
+  if(keysDown['arrowdown']||keysDown['s']) ay+=1;
+
+  // 2) joystick táctil tiene prioridad si activo
+  if(joyActive){
+    ax = joyAX; ay = joyAY;
+  } else if(tapTarget){ 
+    // 3) tap-to-move: genera un vector hacia el destino
+    var dx = tapTarget.x - player.x, dy = tapTarget.y - player.y;
+    var dist = Math.hypot(dx,dy);
+    if(dist < 0.15){ tapTarget = null; dx=dy=0; }
+    else { ax = dx/dist; ay = dy/dist; }
+  }
+
+  // normaliza si viene de teclado (−1/0/1) o mixto
+  var mag = Math.hypot(ax,ay);
+  if(mag>1e-3){ ax/=mag; ay/=mag; }
+  // ... y sigue tu código igual:
+  var sp=player.speed*dt; var nx=player.x, ny=player.y; var movingPrev=isMoving; isMoving=false;
+  if(mag>1e-3){ nx=player.x+ax*sp; ny=player.y+ay*sp; isMoving=true; lastDirX=ax; lastDirY=ay; stepPhase+=dt; }
+  if(!solid(nx, player.y)) player.x=nx; if(!solid(player.x, ny)) player.y=ny;
+  centerCameraSmooth(dt);
+  if(isMoving){ stepTimer+=dt; if(stepTimer>170){ foot(); stepTimer=0; } } else { stepTimer=160; }
+}
+
+
+function solid(tx,ty){
+  var x=Math.floor(tx), y=Math.floor(ty);
+  if(x<0||y<0||x>=WORLD_W||y>=WORLD_H) return true;
+  var t=map[y][x];
+  if(t===TILE_SOLID) return true;
+  if(t===TILE_DOOR) return !state.hasKey;
+  // PATH y EMPTY son transitables
+  return false;
+}
+
+
+function step(dt){ if(!gameStarted || transitioning) return; physicsStep(dt); stepParticles(dt); updateAnimals(dt);
+  var near=false, target=null; var i; for(i=0;i<npcs.length;i++){ var n=npcs[i]; var dist=myHypot(player.x-n.x, player.y-n.y); if(dist< n.r+0.6){ near=true; target=n; break; } }
+  document.getElementById('prompt').style.display=near?'block':'none'; if(near && keysDown['e']){ openQuiz(target.topic); keysDown['e']=false; }
+  if(door && state.hasKey){ var onDoor=Math.floor(player.x)===door.x && Math.floor(player.y)===door.y; if(onDoor){ sfx('door'); nextLevel(); } }
+}
+
+// ===== IA de animales (pastoreo + seguir caminos) =====
+function makeAnimal(i){
+  var p = randomPointOnPath();
+  return {
+    x:p.x, y:p.y,
+    t:(i%2?'sheep':'cow'),
+    m:'path',              // 'path' o 'graze'
+    tx:p.x, ty:p.y,
+    speed: 0.0012 + Math.random()*0.0006,
+    stepPhase: 0,
+    isMoving: false,
+    // anti-atascos
+    prevX: p.x, prevY: p.y, stuckTime: 0,
+    // graze
+    grazeUntil: 0,         // timestamp (ms) límite del pastoreo
+    grazeCooldown: 1000 + (Math.random()*2000)|0, // ms hasta poder volver a “graze”
+    offPathTime: 0,
+    // separación
+    sepRadius: 1.2
+  };
+}
+
+
+
+function pickNewTarget(a){
+  // siempre en camino
+  var p = randomPointOnPath();
+  a.tx = p.x; a.ty = p.y;
+  a.m = 'walk';
+}
+
+function tryMoveAround(a, nx, ny, ux, uy){
+  // 1) intenta mover sólo por X
+  if (isPathTile(nx, a.y) && !solid(nx, a.y)) return {x:nx, y:a.y, ok:true};
+  // 2) intenta mover sólo por Y
+  if (isPathTile(a.x, ny) && !solid(a.x, ny)) return {x:a.x, y:ny, ok:true};
+  // 3) pasito perpendicular (strafe)
+  var px = a.x - uy * 0.6;
+  var py = a.y + ux * 0.6;
+  if (isPathTile(px, py) && !solid(px, py)) return {x:px, y:py, ok:true};
+  return {x:a.x, y:a.y, ok:false};
+}
+
+function pickNewPathTarget(a){
+  var p = randomPointOnPath();
+  a.tx = p.x; a.ty = p.y;
+  a.m  = 'path';
+}
+
+function pickGrazeTarget(a){
+  // busca un tile de pasto cercano y libre
+  var tries = 20, r = 5; // radio máximo
+  for (var k=0;k<tries;k++){
+    var gx = Math.floor(a.x + (Math.random()*2-1)*r);
+    var gy = Math.floor(a.y + (Math.random()*2-1)*r);
+    if (gx<=0||gy<=0||gx>=WORLD_W-1||gy>=WORLD_H-1) continue;
+    if (map[gy][gx] === TILE_EMPTY){ // césped libre
+      a.tx = gx + 0.5; a.ty = gy + 0.5;
+      a.m  = 'graze';
+      // 3–6 s de pastoreo
+      a.grazeUntil = (timeNow||performance.now()) + (3000 + Math.random()*3000)|0;
+      return;
+    }
+  }
+  // si no encontró buen pasto, quedarse en path
+  pickNewPathTarget(a);
+}
+
+function tryMoveAround(a, nx, ny, ux, uy){
+  // 1) solo X
+  if (!solid(nx, a.y)) return {x:nx, y:a.y, ok:true};
+  // 2) solo Y
+  if (!solid(a.x, ny)) return {x:a.x, y:ny, ok:true};
+  // 3) paso perpendicular (izq/der)
+  var px1 = a.x - uy * 0.6, py1 = a.y + ux * 0.6;
+  if (!solid(px1, py1)) return {x:px1, y:py1, ok:true};
+  var px2 = a.x + uy * 0.6, py2 = a.y - ux * 0.6;
+  if (!solid(px2, py2)) return {x:px2, y:py2, ok:true};
+  return {x:a.x, y:a.y, ok:false};
+}
+
+// vector de separación tipo “rebaño”
+function separationVector(a, arr){
+  var sx=0, sy=0, count=0, r=a.sepRadius;
+  for (var i=0;i<arr.length;i++){
+    var b = arr[i]; if (b===a) continue;
+    var dx = a.x - b.x, dy = a.y - b.y;
+    var d2 = dx*dx + dy*dy;
+    if (d2 > 1e-6 && d2 < r*r){
+      var inv = 1/Math.sqrt(d2);
+      sx += dx*inv; sy += dy*inv; count++;
+    }
+  }
+  if (count){
+    var len = Math.hypot(sx,sy) || 1;
+    sx /= len; sy /= len; // dirección
+    // fuerza bajita para no romper el pathing
+    sx *= 0.3; sy *= 0.3;
+  }
+  return {x:sx, y:sy};
+}
+
+
+function updateAnimals(dt){
+  var now = (timeNow||performance.now());
+
+  for(var i=0;i<animals.length;i++){
+    var a = animals[i];
+
+    // --- cambiar entre modos ---
+    if (a.m === 'path'){
+      // probabilidad baja por segundo de entrar a “graze”
+      a.grazeCooldown -= dt;
+      if (a.grazeCooldown <= 0 && Math.random() < 0.002){ // ~0.2% por frame (~cada ~5s aprox)
+        pickGrazeTarget(a);
+        // reinicia cooldown para el siguiente “graze”
+        a.grazeCooldown = 3000 + (Math.random()*4000)|0;
+      }
+    } else if (a.m === 'graze'){
+      // límite de tiempo fuera del camino
+      if (now > a.grazeUntil){
+        // volver al camino
+        var cl = clampToNearestPath(a.x, a.y);
+        a.x = cl.x; a.y = cl.y;
+        pickNewPathTarget(a);
+      }
+    }
+
+    // --- computing del objetivo actual ---
+    var dx = a.tx - a.x, dy = a.ty - a.y;
+    var d  = Math.sqrt(dx*dx + dy*dy);
+
+    // ¿llegó?
+    if (d < 0.2){
+      if (a.m === 'graze'){
+        // al llegar al punto de pasto, quedar pastoreando un poquito más
+        a.grazeUntil = Math.max(a.grazeUntil, now + 600);
+        // chance de “pastorear en grupo”: mueve target hacia centro cercano de compañeros
+        if (Math.random() < 0.3){
+          // toma promedios cercanos
+          var cx=0, cy=0, c=0;
+          for (var k=0;k<animals.length;k++){
+            var b=animals[k]; if (b===a) continue;
+            var ddx=b.x-a.x, ddy=b.y-a.y, dd=ddx*ddx+ddy*ddy;
+            if (dd < 9){ cx+=b.x; cy+=b.y; c++; }
+          }
+          if (c){
+            cx/=c; cy/=c;
+            // busca pasto cerca de ese centro
+            var tries=10, r=4, found=false;
+            for(var t=0;t<tries;t++){
+              var gx=Math.floor(cx+(Math.random()*2-1)*r), gy=Math.floor(cy+(Math.random()*2-1)*r);
+              if (gx>0&&gy>0&&gx<WORLD_W-1&&gy<WORLD_H-1 && map[gy][gx]===TILE_EMPTY){
+                a.tx=gx+0.5; a.ty=gy+0.5; found=true; break;
+              }
+            }
+            if(!found) { /* se queda donde está */ }
+          }
+        }
+      } else {
+        // en camino: nuevo destino en path
+        if (Math.random() < 0.02) pickNewPathTarget(a);
+      }
+      a.isMoving=false;
+      a.prevX=a.x; a.prevY=a.y; a.stuckTime=0;
+      continue;
+    }
+
+    // --- dirección base hacia el target ---
+    var ux = dx/d, uy = dy/d;
+
+    // --- separación (solo fuerte en “graze”, suave en path) ---
+    var sep = separationVector(a, animals);
+    var mix = (a.m === 'graze') ? 1.0 : 0.4;
+    ux = ux*(1-mix) + sep.x*mix;
+    uy = uy*(1-mix) + sep.y*mix;
+    var mag = Math.hypot(ux,uy) || 1; ux/=mag; uy/=mag;
+
+    var sp = a.speed * dt;
+    var nx = a.x + ux*sp;
+    var ny = a.y + uy*sp;
+
+    // --- evitar sólidos inmediatos ---
+    if (solid(nx, ny)){
+      var alt = tryMoveAround(a, nx, ny, ux, uy);
+      nx = alt.x; ny = alt.y;
+    }
+
+    // --- garantías de camino salvo en “graze” ---
+    if (a.m !== 'graze'){
+      if (!isPathTile(nx, ny)){
+        // intenta deslizar por ejes
+        if (isPathTile(nx, a.y) && !solid(nx, a.y)) ny = a.y;
+        else if (isPathTile(a.x, ny) && !solid(a.x, ny)) nx = a.x;
+        else { var cl = clampToNearestPath(nx, ny); nx=cl.x; ny=cl.y; }
+      }
+    }
+
+    // aplica
+    var moved = Math.abs(nx - a.x) + Math.abs(ny - a.y);
+    a.x = nx; a.y = ny;
+    a.isMoving = moved > 0.0001;
+
+    // red: si está fuera de camino y NO está en “graze”, lo regresamos
+    if (a.m !== 'graze' && !isPathTile(a.x, a.y)){
+      var cl2 = clampToNearestPath(a.x, a.y);
+      a.x = cl2.x; a.y = cl2.y;
+    }
+
+    // --- anti-atasco duro ---
+    var delta = Math.abs(a.x - a.prevX) + Math.abs(a.y - a.prevY);
+    if (delta < 0.002){ a.stuckTime += dt; } else { a.stuckTime = 0; a.prevX = a.x; a.prevY = a.y; }
+    if (a.stuckTime > 1000){
+      if (a.m === 'graze'){
+        // cortar graze y volver al camino
+        var cl3 = clampToNearestPath(a.x, a.y);
+        a.x = cl3.x; a.y = cl3.y;
+        pickNewPathTarget(a);
+      } else {
+        // renovar objetivo en path
+        pickNewPathTarget(a);
+      }
+      a.stuckTime = 0;
+    }
+
+    // animación de pasos
+    if (a.isMoving) a.stepPhase += dt * (a.speed / 0.006);
+  }
+}
+
+
+
+// ===== QUIZ con puntaje variable y límite de 2 errores =====
+var currentTopic=null, qi=0, mistakesQ=0, mistakesTotal=0;
+function openQuiz(topic){ currentTopic=topic; qi=0; mistakesQ=0; mistakesTotal=0; document.getElementById('quiz').style.display='flex'; renderQ(); }
+function closeQuiz(){ document.getElementById('quiz').style.display='none'; }
+function failQuiz(){ document.getElementById('quiz').style.display='none'; document.getElementById('fail').style.display='flex'; }
+function renderQ(){
+  var arr=bank[currentTopic];
+  if(qi>=arr.length){ // nivel completado
+    if(state.level === levels.length-1){ state.done=true; document.getElementById('finalScore').textContent=state.score; if(!TEST_MODE) transition(function(){ document.getElementById('end').style.display='flex'; }); sfx('level'); closeQuiz(); return; }
+    else { state.hasKey=true; showDoorMarker=true; toast('¡Llave obtenida! Busca la puerta.'); updateHUD(); var kEl=document.getElementById('keysHUD'); kEl.classList.add('pop'); setTimeout(function(){kEl.classList.remove('pop');},500); sfx('key'); closeQuiz(); return; }
+  }
+  var q=arr[qi]; document.getElementById('qNum').textContent=qi+1; document.getElementById('qText').textContent=q.q; mistakesQ=0; var box=document.getElementById('qOpts'); box.innerHTML='';
+  var i; for(i=0;i<q.opts.length;i++){ (function(idx){ var t=q.opts[idx]; var b=document.createElement('button'); b.className='btn opt'; b.textContent=t; box.appendChild(b);
+    b.onclick=function(){ if(idx===q.ok){ b.classList.add('ok'); var gained=Math.max(1, 12 - mistakesQ*3); state.score+=gained; updateHUD(); setTimeout(function(){qi++; renderQ();},280);} else { b.classList.add('bad'); mistakesQ++; mistakesTotal++; if(mistakesTotal>=3){ failQuiz(); } } };
+  })(i); }
+}
+
+// ===== Transición y Loading por nivel =====
+function showLoading(){ if(TEST_MODE) return; var L=document.getElementById('loading'); var txt=document.getElementById('loadingText'); var info=levels[state.level]; txt.textContent='Cargando: '+info.season.toUpperCase(); L.style.display='flex'; }
+function hideLoading(){ if(TEST_MODE) return; document.getElementById('loading').style.display='none'; }
+function transition(doWork){ if(transitioning) return; transitioning=true; showLoading(); setTimeout(function(){ doWork(); hideLoading(); transitioning=false; }, 900); }
+function nextLevel(){ if(state.level+1 >= levels.length){ state.done=true; document.getElementById('finalScore').textContent=state.score; if(!TEST_MODE) transition(function(){ document.getElementById('end').style.display='flex'; }); sfx('level'); return; } state.level++; transition(function(){ buildLevel(state.level); updateHUD(); toast('Nivel '+(state.level+1)+' — '+levels[state.level].season); }); sfx('level'); }
+
+// ===== HUD =====
+function updateHUD(){ document.getElementById('score').textContent=state.score+''; document.getElementById('levelHUD').textContent=(state.level+1)+'/'+levels.length; document.getElementById('topicHUD').textContent=levels[state.level].topic; document.getElementById('keysHUD').textContent = state.hasKey? '1/1':'0/1'; }
+function toast(msg){ var t=document.createElement('div'); t.textContent=msg; t.style.position='fixed'; t.style.bottom='18px'; t.style.left='50%'; t.style.transform='translateX(-50%)'; t.style.padding='10px 14px'; t.style.border='1px solid #22314a'; t.style.background='#0c1626'; t.style.borderRadius='12px'; t.style.boxShadow='0 10px 20px #0006'; t.style.pointerEvents='none'; t.style.zIndex='98'; document.body.appendChild(t); setTimeout(function(){t.remove();},1400); }
+
+// ===== BANNER ESTACIONAL =====
+function showSeasonBanner(){ var el=document.getElementById('banner'); var txt=document.getElementById('bannerText'); var s=levels[state.level].season; var name = (s==='spring'?'PRIMAVERA':(s==='autumn'?'OTOÑO':'INVIERNO')); txt.textContent=name; el.classList.add('show'); el.style.opacity='1'; setTimeout(function(){ el.style.opacity='0'; el.classList.remove('show'); }, 1500); }
+function drawMinimap(){
+  if(!mini || !mctx) return;
+
+  // Colores por estación
+  var s = levels[state.level].season;
+  var colGround = (s==='winter') ? '#dfe8f1' : (s==='autumn' ? '#b58154' : '#6aa66a');
+  var colPath   = (s==='winter') ? '#cfd6e0' : (s==='autumn' ? '#9a6a41' : '#8d5a3b');
+  var colTree   = (s==='winter') ? '#9fb5c4' : (s==='autumn' ? '#6b3c1d' : '#2f7d32');
+  var colBarn   = (s==='winter') ? '#9ca3af' : '#c4632f';
+
+  // Fondo
+  mctx.fillStyle = colGround;
+  mctx.fillRect(0,0, mini.width, mini.height);
+
+  // Caminos
+  mctx.fillStyle = colPath;
+  for(var i=0;i<paths.length;i++){
+    var p=paths[i];
+    mctx.fillRect(p[0]*MM_SCALE, p[1]*MM_SCALE, p[2]*MM_SCALE, p[3]*MM_SCALE);
+  }
+
+  // Graneros (6x4 tiles)
+  mctx.fillStyle = colBarn;
+  for(var b=0;b<barns.length;b++){
+    var bx=barns[b].x, by=barns[b].y;
+    mctx.fillRect(bx*MM_SCALE, by*MM_SCALE, 6*MM_SCALE, 4*MM_SCALE);
+  }
+
+  // Árboles
+  mctx.fillStyle = colTree;
+  for(var t=0;t<trees.length;t++){
+    mctx.fillRect(trees[t].x*MM_SCALE, trees[t].y*MM_SCALE, 1, 1);
+  }
+
+  // Puerta (parpadeo)
+  if(door){
+    var has = state.hasKey;
+    var blink = Math.sin(timeNow*0.006) > 0;
+    if(blink || has){
+      mctx.fillStyle = has ? '#22c55e' : '#f59e0b';
+      mctx.fillRect(door.x*MM_SCALE, door.y*MM_SCALE, 8, 8);
+    }
+  }
+
+  // Jugador
+  mctx.fillStyle = '#3b82f6';
+  mctx.fillRect(Math.floor(player.x)*MM_SCALE, Math.floor(player.y)*MM_SCALE, 8, 8);
+  
+    // --- NPC objetivo en el minimapa ---
+  if (npcs && npcs.length && !state.hasKey) {
+    // parpadeo suave
+    var blinkNPC = Math.sin(timeNow * 0.006) > 0;
+    if (blinkNPC) {
+      mctx.fillStyle = '#a855f7'; // lila intenso
+      for (var n = 0; n < npcs.length; n++) {
+        var nx = Math.floor(npcs[n].x) * MM_SCALE;
+        var ny = Math.floor(npcs[n].y) * MM_SCALE;
+        // mismo tamaño que usas para player/door para mantener consistencia visual
+        mctx.fillRect(nx, ny, 8, 8);
+      }
+    }
+  }
+
+}
+
+// ===== LOOP =====
+var last=performance.now(), gameStarted=false, timeNow=0;
+function draw(){
+  drawWorld();
+  for(var i=0;i<npcs.length;i++) drawNPC(npcs[i]);
+  drawPlayer();
+  drawPlayerArrow();   // <- flecha sobre el jugador
+  drawMinimap();
+}
+
+function loop(t){ var dt=Math.min(33,t-last); last=t; timeNow=t; step(dt); draw(); requestAnimationFrame(loop); }
+
+// Start
+var start=document.getElementById('start'); var btnStart=document.getElementById('btnStart');
+btnStart.onclick=function(){ gameStarted=true; start.style.display='none'; updateHUD(); initAudio(); 
+showSeasonBanner(); 
+};
+
+// Fail actions
+var btnRetry=document.getElementById('btnRetry'); var btnFailHome=document.getElementById('btnFailHome');
+if(btnRetry){ btnRetry.onclick=function(){ document.getElementById('fail').style.display='none'; buildLevel(state.level); updateHUD(); }; }
+if(btnFailHome){ btnFailHome.onclick=function(){ document.getElementById('fail').style.display='none'; goHome(); }; }
+
+// Init
+buildLevel(0);
+
+// Fades helper (no usado directamente ahora)
+var fadeEl=document.getElementById('fade'); function fadeOut(cb){ fadeEl.style.opacity='1'; setTimeout(function(){ if(cb) cb(); }, 650); } function fadeIn(){ requestAnimationFrame(function(){ fadeEl.style.opacity='0'; }); }
+
+// Audio (WebAudio sin assets)
+var AC=null; function initAudio(){ if(!AC){ AC=new (window.AudioContext||window.webkitAudioContext)(); }}
+function beep(f,t,v){ if(!AC) return; var o=AC.createOscillator(); var g=AC.createGain(); o.type='sine'; o.frequency.value=f; g.gain.value=v||0.06; o.connect(g).connect(AC.destination); o.start(); o.stop(AC.currentTime+(t||0.15)); }
+function foot(){ if(!AC) return; var o=AC.createOscillator(); var g=AC.createGain(); o.type='square'; o.frequency.setValueAtTime(180, AC.currentTime); g.gain.setValueAtTime(0.0001, AC.currentTime); g.gain.exponentialRampToValueAtTime(0.03, AC.currentTime+0.005); g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime+0.09); o.connect(g).connect(AC.destination); o.start(); o.stop(AC.currentTime+0.1); }
+function sfx(type){ if(!AC) return; if(type==='key') beep(880,0.18,0.08); else if(type==='level') { beep(523,0.1,0.06); setTimeout(function(){beep(659,0.12,0.06);},90);} else if(type==='door') beep(196,0.2,0.05); }
+
+// End screen actions & reset
+var btnHome=document.getElementById('btnHome');
+function goHome(){ document.getElementById('end').style.display='none'; resetGame(true); start.style.display='flex'; gameStarted=false; hideLoading(); }
+btnHome.onclick=goHome;
+function resetGame(fromEnd){ state.level=0; state.score=0; state.hasKey=false; state.done=false; buildLevel(0); updateHUD(); showDoorMarker=false; if(!fromEnd){ start.style.display='none'; gameStarted=true; } hideLoading(); }
+
+// ===== DEV SELF-TESTS =====
+(function selfTest(){ TEST_MODE=true;
+  console.assert(levels.length===3,'Debe haber 3 niveles');
+  console.assert(levels[0].topic==='present' && levels[1].topic==='could' && levels[2].topic==='vocab','Temas por nivel esperados');
+  console.assert(npcs.length===1,'Cada nivel debe tener 1 NPC');
+  console.assert(document.getElementById('btnHome'), 'Botón Volver al inicio presente');
+  console.assert(state.level===0,'Nivel inicial debe ser 0');
+  if(door){ var prev=state.hasKey; state.hasKey=false; console.assert(solid(door.x,door.y)===true,'Puerta bloquea sin llave'); state.hasKey=true; console.assert(solid(door.x,door.y)===false,'Puerta no bloquea con llave'); state.hasKey=prev; }
+  var gained=Math.max(1,12-2*3); console.assert(gained<12,'Con errores gana menos');
+  console.assert(document.getElementById('start').style.display==='flex','Pantalla de inicio debe mostrarse al cargar');
+  (function(){ var mt=0; function wrong(){ mt++; return mt>=3; } console.assert(wrong()===false && wrong()===false && wrong()===true, 'A la tercera falla, se pierde'); })();
+  (function(){ var px=player.x, py=player.y; var kd=keysDown; keysDown={}; physicsStep(0); var px2=player.x, py2=player.y; console.assert(Math.abs(px2-px)+Math.abs(py2-py) < 0.0001, 'Sin teclas, sin movimiento'); keysDown=kd; })();
+  // animales deben tener objetivos válidos
+  console.assert(animals.length>0,'Animales generados');
+  var ok=true; for(var i=0;i<animals.length;i++){ if(isNaN(animals[i].tx)||isNaN(animals[i].ty)) ok=false; }
+  console.assert(ok,'Animales con targets válidos');
+  // drawCharacter no debe lanzar
+  try { drawCharacter(100,100,'#222',1,0,true); console.assert(true,'drawCharacter OK'); } catch(e){ console.assert(false,'drawCharacter lanzó: '+e.message); }
+  TEST_MODE=false;
+})();
+
+requestAnimationFrame(loop);
+// ====== CONTROL TÁCTIL ======
+var joy = document.getElementById('joy');
+var thumb = document.getElementById('thumb');
+var btnE = document.getElementById('btnE');
+
+var joyActive = false, joyAX = 0, joyAY = 0;
+var joyCenter = {x:0,y:0}, joyRadius = 56; // radio útil dentro de la base
+var tapTarget = null; // {x, y} en coords de mundo (center de tile)
+
+// helper: pantalla -> mundo
+function screenToWorld(sx, sy){
+  // compensar scroll (no hay), usar camXF/camYF para precisión sub-tile
+  var rect = cvs.getBoundingClientRect();
+  var x = sx - rect.left, y = sy - rect.top;
+  return { x: camXF + x / TILE, y: camYF + y / TILE };
+}
+
+// --- joystick ---
+function joyStart(sx, sy){
+  var r = joy.getBoundingClientRect();
+  joyCenter.x = r.left + r.width/2;
+  joyCenter.y = r.top + r.height/2;
+  joyActive = true;
+  joyMove(sx, sy);
+}
+function joyMove(sx, sy){
+  if(!joyActive) return;
+  var dx = sx - joyCenter.x, dy = sy - joyCenter.y;
+  var len = Math.hypot(dx, dy) || 1;
+  var nx = dx / len, ny = dy / len;
+  var dist = Math.min(len, joyRadius);
+  // posición visual del stick
+  thumb.style.transform = `translate(${dist*nx}px, ${dist*ny}px)`;
+  // ejes (reutilizados por physicsStep)
+  joyAX = nx * (dist/joyRadius);
+  joyAY = ny * (dist/joyRadius);
+}
+function joyEnd(){
+  joyActive = false; joyAX = 0; joyAY = 0;
+  thumb.style.transform = `translate(0px, 0px)`;
+}
+
+// listeners joystick (touch + mouse por si acaso)
+joy.addEventListener('touchstart', e=>{ e.preventDefault(); var t=e.changedTouches[0]; joyStart(t.clientX, t.clientY); }, {passive:false});
+joy.addEventListener('touchmove',  e=>{ e.preventDefault(); var t=e.changedTouches[0]; joyMove(t.clientX, t.clientY); }, {passive:false});
+joy.addEventListener('touchend',   e=>{ e.preventDefault(); joyEnd(); }, {passive:false});
+joy.addEventListener('mousedown',  e=>{ e.preventDefault(); joyStart(e.clientX, e.clientY); });
+window.addEventListener('mousemove', e=>{ if(joyActive) joyMove(e.clientX, e.clientY); });
+window.addEventListener('mouseup',   joyEnd);
+
+// --- botón E (interactuar) ---
+btnE.addEventListener('touchstart', e=>{ e.preventDefault(); keysDown['e']=true; }, {passive:false});
+btnE.addEventListener('touchend',   e=>{ e.preventDefault(); keysDown['e']=false; }, {passive:false});
+btnE.addEventListener('mousedown',  e=>{ keysDown['e']=true; });
+btnE.addEventListener('mouseup',    e=>{ keysDown['e']=false; });
+
+// --- tap-to-move sobre el canvas ---
+cvs.addEventListener('touchend', e=>{
+  // si no usaste el joystick (zona izquierda), interpretamos como tap destino
+  var t = e.changedTouches[0];
+  // evita que un tap sobre el joystick cuente
+  var jr = joy.getBoundingClientRect();
+  if(t.clientX >= jr.left && t.clientX <= jr.right && t.clientY >= jr.top && t.clientY <= jr.bottom) return;
+
+  var w = screenToWorld(t.clientX, t.clientY);
+  var target = {x: Math.floor(w.x)+0.5, y: Math.floor(w.y)+0.5};
+  // si no es camino, ajusta al más cercano
+  if(!isPathTile(target.x, target.y)) target = clampToNearestPath(target.x, target.y);
+  tapTarget = target;
+}, {passive:true});
+
+// click mouse también
+cvs.addEventListener('mouseup', e=>{
+  var w = screenToWorld(e.clientX, e.clientY);
+  var target = {x: Math.floor(w.x)+0.5, y: Math.floor(w.y)+0.5};
+  if(!isPathTile(target.x, target.y)) target = clampToNearestPath(target.x, target.y);
+  tapTarget = target;
+});
+
+</script>
+</body>
+</html>
